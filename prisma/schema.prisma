@@ -72,3 +72,119 @@ model VerificationToken {
 
     @@unique([identifier, token])
 }
+
+enum TestType {
+    TECHNICAL
+    HR
+}
+
+enum QuestionType {
+    MULTIPLE_CHOICE
+    TRUE_FALSE
+    SHORT_ANSWER
+    LONG_ANSWER
+}
+
+enum AttemptStatus {
+    IN_PROGRESS
+    SUBMITTED
+    EVALUATED
+}
+
+model Candidate {
+    id           String        @id @default(cuid())
+    name         String
+    email        String        @unique
+    resumeKey    String
+    resumeData   String // if you ever switch to Postgres you can make this Json
+    tests        Test[]
+    testAttempts TestAttempt[]
+
+    @@map("candidates")
+}
+
+model Test {
+    id          String        @id @default(cuid())
+    title       String
+    type        TestType
+    startTime   DateTime
+    endTime     DateTime
+    expiresAt   DateTime
+    candidateId String
+    candidate   Candidate     @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+    questions   Question[]
+    attempts    TestAttempt[]
+
+    @@index([candidateId])
+    @@map("tests")
+}
+
+model Question {
+    id                String              @id @default(cuid())
+    text              String
+    type              QuestionType
+    maxScore          Int                 @default(1)
+    timeLimit         Int? // seconds allowed
+    testId            String
+    test              Test                @relation(fields: [testId], references: [id], onDelete: Cascade)
+    options           QuestionOption[]
+    TestAttemptAnswer TestAttemptAnswer[]
+
+    @@index([testId])
+    @@map("questions")
+}
+
+model QuestionOption {
+    id         String   @id @default(cuid())
+    label      String
+    value      String
+    isCorrect  Boolean  @default(false)
+    questionId String
+    question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+    @@unique([questionId, label])
+    @@index([questionId])
+    @@map("question_options")
+}
+
+model TestAttempt {
+    id          String              @id @default(cuid())
+    startedAt   DateTime            @default(now())
+    completedAt DateTime?
+    status      AttemptStatus       @default(IN_PROGRESS)
+    totalScore  Int?
+    testId      String
+    test        Test                @relation(fields: [testId], references: [id], onDelete: Cascade)
+    candidateId String
+    candidate   Candidate           @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+    answers     TestAttemptAnswer[]
+
+    @@index([testId])
+    @@index([candidateId])
+    @@map("test_attempts")
+}
+
+model TestAttemptAnswer {
+    id            String      @id @default(cuid())
+    testAttemptId String
+    testAttempt   TestAttempt @relation(fields: [testAttemptId], references: [id], onDelete: Cascade)
+    questionId    String
+    question      Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+    // for MCQ / TF:
+    selectedOptionIds Json? // e.g. ["optA","optC"]
+    // for SHORT/LONG answers:
+    response          String?
+
+    isCorrect Boolean @default(false)
+    score     Int     @default(0)
+    timeTaken Int // seconds spent on this question
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@unique([testAttemptId, questionId])
+    @@index([testAttemptId])
+    @@index([questionId])
+    @@map("test_attempt_answers")
+}
