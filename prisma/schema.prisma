@@ -107,8 +107,8 @@ model Test {
     id          String        @id @default(cuid())
     title       String
     type        TestType
-    startTime   DateTime
-    endTime     DateTime
+    // startTime   DateTime
+    // endTime     DateTime
     expiresAt   DateTime
     candidateId String
     candidate   Candidate     @relation(fields: [candidateId], references: [id], onDelete: Cascade)
@@ -122,6 +122,7 @@ model Test {
 model Question {
     id                String              @id @default(cuid())
     text              String
+    answer            Boolean? // for TF questions
     type              QuestionType
     maxScore          Int                 @default(1)
     timeLimit         Int? // seconds allowed
@@ -137,7 +138,7 @@ model Question {
 model QuestionOption {
     id         String   @id @default(cuid())
     label      String
-    value      String
+    // value      String
     isCorrect  Boolean  @default(false)
     questionId String
     question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)

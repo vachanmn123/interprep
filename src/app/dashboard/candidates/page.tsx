@@ -264,7 +264,8 @@ export default function CandidatesPage() {
             if (!newOpen) setResumeKey(null);
           }}
         >
-          <DialogContent className="min-h-[75vh]">
+          <DialogContent className="min-h-[85vh]">
+            <DialogTitle className="sr-only">Resume</DialogTitle>
             <ResumeViewer resumeKey={resumeKey!} />
           </DialogContent>
         </Dialog>

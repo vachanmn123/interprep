@@ -24,6 +24,12 @@ export const env = createEnv({
     AWS_S3_ACCESS_KEY_ID: z.string(),
     AWS_S3_SECRET_ACCESS_KEY: z.string(),
     GOOGLE_GENERATIVE_AI_API_KEY: z.string(),
+    SMTP_HOST: z.string(),
+    SMTP_PORT: z.string(),
+    SMTP_USER: z.string(),
+    SMTP_PASS: z.string(),
+    SMTP_FROM: z.string(),
+    SMTP_FROM_NAME: z.string(),
   },
 
   /**
@@ -51,6 +57,12 @@ export const env = createEnv({
     AWS_S3_ACCESS_KEY_ID: process.env.AWS_S3_ACCESS_KEY_ID,
     AWS_S3_SECRET_ACCESS_KEY: process.env.AWS_S3_SECRET_ACCESS_KEY,
     GOOGLE_GENERATIVE_AI_API_KEY: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+    SMTP_HOST: process.env.SMTP_HOST,
+    SMTP_PORT: process.env.SMTP_PORT,
+    SMTP_USER: process.env.SMTP_USER,
+    SMTP_PASS: process.env.SMTP_PASS,
+    SMTP_FROM: process.env.SMTP_FROM,
+    SMTP_FROM_NAME: process.env.SMTP_FROM_NAME,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
