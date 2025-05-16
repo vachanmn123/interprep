@@ -139,20 +139,36 @@ export default class ProctoringService {
 
   // Update the initWebcam method to handle the case where we already have permission
   private async initWebcam() {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices) {
+      console.error("MediaDevices API not available");
+      this.reportViolation("webcam_api_unavailable", { timestamp: Date.now() });
+      return;
+    }
+
     try {
       this.webcamStream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: false,
       });
 
+      // Verify that we actually got video tracks
+      if (
+        !this.webcamStream ||
+        this.webcamStream.getVideoTracks().length === 0
+      ) {
+        throw new Error("No video tracks available");
+      }
+
       // Set up periodic checks for face detection
-      // In a real implementation, you would use a face detection library
       this.webcamInterval = setInterval(() => {
         this.checkWebcamActivity();
       }, 5000);
     } catch (error) {
       console.error("Error accessing webcam:", error);
-      this.reportViolation("webcam_access_denied", { timestamp: Date.now() });
+      this.reportViolation("webcam_access_denied", {
+        timestamp: Date.now(),
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -224,27 +240,16 @@ export default class ProctoringService {
   }
 
   private async logViolation(type: string, details: unknown, severity: string) {
-    try {
-      await fetch("/api/proctoring/violations", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          type,
-          details,
-          severity,
-          testId: this.options.testId,
-          attemptId: this.options.attemptId,
-          timestamp: Date.now(),
-        }),
-      });
-    } catch (error) {
-      console.error("Error logging violation:", error);
-    }
+    console.log(
+      `Logging violation: ${type}, details: ${JSON.stringify(
+        details,
+      )}, severity: ${severity}`,
+    );
   }
 
   public cleanup() {
+    if (typeof window === "undefined") return;
+
     // Remove all event listeners
     this.removeEventListeners();
 

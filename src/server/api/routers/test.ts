@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
-import { AttemptStatus } from "@prisma/client";
+import { createTRPCRouter, publicProcedure, protectedProcedure } from "@/server/api/trpc";
+import { AttemptStatus, TestType } from "@prisma/client";
 import { jwtVerify } from "jose";
 import { env } from "@/env";
 
@@ -13,11 +13,18 @@ async function verifyCredential(credentialToken: string) {
       new TextEncoder().encode(env.AUTH_SECRET),
     );
 
+    const candidateId = payload.candidateId as string;
+    const testId = payload.testId as string;
+
+    if (!candidateId || !testId) {
+      throw new Error("Missing required fields in token");
+    }
+
     return {
-      candidateId: payload.candidateId as string,
-      testId: payload.testId as string,
+      candidateId,
+      testId,
     };
-  } catch (error) {
+  } catch {
     throw new TRPCError({
       code: "UNAUTHORIZED",
       message: "Invalid or expired credential token",
@@ -67,6 +74,21 @@ export const testRouter = createTRPCRouter({
         });
       }
 
+      // If there is already a test attempt that is completed, throw an error
+      const existingAttempt = await ctx.db.testAttempt.findFirst({
+        where: {
+          testId: test.id,
+          candidateId: candidate.id,
+          status: AttemptStatus.SUBMITTED,
+        },
+      });
+      if (existingAttempt) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "You already have a completed test attempt for this test",
+        });
+      }
+
       return { test };
     }),
 
@@ -108,6 +130,14 @@ export const testRouter = createTRPCRouter({
         });
       }
 
+      // Check if the test has expired
+      if (test.expiresAt && new Date(test.expiresAt) < new Date()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Test has expired",
+        });
+      }
+
       // Check if there's already an in-progress attempt
       const existingAttempt = await ctx.db.testAttempt.findFirst({
         where: {
@@ -118,7 +148,10 @@ export const testRouter = createTRPCRouter({
       });
 
       if (existingAttempt) {
-        return { attempt: existingAttempt };
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "You already have test attempt for this test",
+        });
       }
 
       // Create a new attempt
@@ -202,6 +235,8 @@ export const testRouter = createTRPCRouter({
           message: "Test attempt is already completed",
         });
       }
+
+      console.log("Attempt questions:", JSON.stringify(input));
 
       // Process and save answers
       const answerPromises = Object.entries(input.answers).map(
@@ -364,5 +399,111 @@ export const testRouter = createTRPCRouter({
       // We could also store the reason in a separate table or as metadata
 
       return { success: true, attempt: updatedAttempt };
+    }),
+
+  getAll: protectedProcedure.query(({ ctx }) => {
+    return ctx.db.test.findMany({
+      orderBy: { id: "desc" },
+      include: {
+        candidate: true,
+      },
+    });
+  }),
+  
+  getById: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(({ ctx, input }) => {
+      return ctx.db.test.findUnique({
+        where: { id: input.id },
+        include: {
+          questions: {
+            include: {
+              options: true,
+            },
+          },
+          candidate: true,
+          attempts: true,
+        },
+      });
+    }),
+  
+  // Dashboard statistics
+  getStats: protectedProcedure.query(async ({ ctx }) => {
+    const now = new Date();
+    
+    // Count active tests (not expired)
+    const activeTests = await ctx.db.test.count({
+      where: {
+        expiresAt: {
+          gt: now,
+        },
+      },
+    });
+    
+    // Count tests with submitted attempts
+    const testsWithSubmittedAttempts = await ctx.db.test.count({
+      where: {
+        attempts: {
+          some: {
+            status: AttemptStatus.SUBMITTED,
+          },
+        },
+      },
+    });
+    
+    // Count tests pending review (submitted but not evaluated)
+    const pendingReviews = await ctx.db.test.count({
+      where: {
+        attempts: {
+          some: {
+            status: AttemptStatus.SUBMITTED,
+          },
+        },
+      },
+    });
+    
+    return {
+      activeTests,
+      completedTests: testsWithSubmittedAttempts,
+      pendingReviews,
+    };
+  }),
+  
+  getRecent: protectedProcedure
+    .input(z.object({ limit: z.number().min(1).max(100).default(5) }))
+    .query(({ ctx, input }) => {
+      return ctx.db.test.findMany({
+        take: input.limit,
+        orderBy: { id: "desc" },
+        include: {
+          candidate: true,
+        },
+      });
+    }),
+
+  // For creating tests - to be implemented
+  createTest: protectedProcedure
+    .input(
+      z.object({
+        title: z.string().min(1),
+        type: z.nativeEnum(TestType),
+        expiresAt: z.date(),
+        candidateId: z.string(),
+        questions: z.array(
+          z.object({
+            // Test creation logic would go here
+          })
+        ).optional(),
+      }),
+    )
+    .mutation(({ ctx, input }) => {
+      return ctx.db.test.create({
+        data: {
+          title: input.title,
+          type: input.type,
+          expiresAt: input.expiresAt,
+          candidateId: input.candidateId,
+        },
+      });
     }),
 });

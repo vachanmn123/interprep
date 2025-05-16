@@ -304,4 +304,56 @@ export const candidateRouter = createTRPCRouter({
 
       return { message: "Test created successfully" };
     }),
+
+  getTestAttempt: protectedProcedure
+    .input(z.object({ attemptId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const { attemptId } = input;
+      const testAttempt = await ctx.db.testAttempt.findUnique({
+        where: { id: attemptId },
+        include: {
+          answers: {
+            include: {
+              question: {
+                include: {
+                  options: true,
+                },
+              },
+            },
+          },
+          test: {
+            include: {
+              questions: {
+                include: {
+                  options: true,
+                },
+              },
+            },
+          },
+          candidate: true,
+        },
+      });
+      if (!testAttempt) {
+        throw new Error("Test attempt not found");
+      }
+      return testAttempt;
+    }),
+
+  // New endpoints for the dashboard
+  getStats: protectedProcedure.query(async ({ ctx }) => {
+    const totalCandidates = await ctx.db.candidate.count();
+
+    return {
+      totalCandidates,
+    };
+  }),
+
+  getRecent: protectedProcedure
+    .input(z.object({ limit: z.number().min(1).max(100).default(5) }))
+    .query(({ ctx, input }) => {
+      return ctx.db.candidate.findMany({
+        take: input.limit,
+        orderBy: { id: "desc" },
+      });
+    }),
 });

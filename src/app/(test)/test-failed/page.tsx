@@ -10,12 +10,12 @@ import {
 } from "@/components/ui/card";
 import { AlertTriangle } from "lucide-react";
 
-export default function TestFailedPage({
+export default async function TestFailedPage({
   searchParams,
 }: {
-  searchParams: { reason?: string };
+  searchParams: Promise<{ reason?: string }>;
 }) {
-  const { reason = "Malpractice detected" } = searchParams;
+  const { reason = "Malpractice detected" } = await searchParams;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50">

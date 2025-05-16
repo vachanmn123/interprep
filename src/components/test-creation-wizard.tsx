@@ -56,6 +56,9 @@ export default function TestCreationDialog({
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
       refetchInterval: false,
+      refetchIntervalInBackground: false,
+      retry: false,
+      retryOnMount: false,
     },
   );
 

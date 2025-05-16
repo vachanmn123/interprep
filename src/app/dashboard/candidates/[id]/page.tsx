@@ -8,13 +8,15 @@ import { AttemptStatus, TestType } from "@prisma/client";
 import ResumeViewer from "@/components/resume-viewer";
 import ResumeDataViewer from "@/components/resume-data-viewer";
 import TestCreationDialog from "@/components/test-creation-wizard";
+import Link from "next/link";
 
 export default async function CandidateInfo({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const candidate = await api.candidate.getCandidate({ id: params.id });
+  const { id } = await params;
+  const candidate = await api.candidate.getCandidate({ id });
 
   if (!candidate) {
     return <div className="p-8 text-center">Candidate not found</div>;
@@ -83,7 +85,7 @@ export default async function CandidateInfo({
                 <Card>
                   <CardHeader>
                     <CardTitle>Assigned Tests</CardTitle>
-                    <TestCreationDialog candidateId={params.id} />
+                    <TestCreationDialog candidateId={id} />
                   </CardHeader>
                   <CardContent>
                     {candidate.tests && candidate.tests.length > 0 ? (
@@ -137,77 +139,83 @@ export default async function CandidateInfo({
                     candidate.testAttempts.length > 0 ? (
                       <div className="space-y-4">
                         {candidate.testAttempts.map((attempt) => (
-                          <div
+                          <Link
+                            href={`/dashboard/candidates/${id}/attempts/${attempt.id}`}
                             key={attempt.id}
-                            className="rounded-lg border p-4"
                           >
-                            <div className="flex items-center justify-between">
-                              <h3 className="font-medium">
-                                {attempt.test?.title || "Unknown Test"}
-                              </h3>
-                              <Badge
-                                variant={
-                                  attempt.status === AttemptStatus.EVALUATED
-                                    ? "default"
-                                    : attempt.status === AttemptStatus.SUBMITTED
-                                      ? "destructive"
-                                      : "secondary"
-                                }
-                              >
-                                {attempt.status}
-                              </Badge>
-                            </div>
-                            <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
-                              <div>
-                                <span className="text-muted-foreground">
-                                  Started:{" "}
-                                </span>
-                                {new Date(attempt.startedAt).toLocaleString()}
+                            <div
+                              key={attempt.id}
+                              className="rounded-lg border p-4"
+                            >
+                              <div className="flex items-center justify-between">
+                                <h3 className="font-medium">
+                                  {attempt.test?.title || "Unknown Test"}
+                                </h3>
+                                <Badge
+                                  variant={
+                                    attempt.status === AttemptStatus.EVALUATED
+                                      ? "default"
+                                      : attempt.status ===
+                                          AttemptStatus.SUBMITTED
+                                        ? "destructive"
+                                        : "secondary"
+                                  }
+                                >
+                                  {attempt.status}
+                                </Badge>
                               </div>
-                              <div>
-                                <span className="text-muted-foreground">
-                                  Completed:{" "}
-                                </span>
-                                {attempt.completedAt
-                                  ? new Date(
-                                      attempt.completedAt,
-                                    ).toLocaleString()
-                                  : "In Progress"}
-                              </div>
-                            </div>
-                            {attempt.status === AttemptStatus.EVALUATED && (
-                              <div className="mt-2 flex items-center">
-                                <span className="text-muted-foreground mr-2 text-sm">
-                                  Score:{" "}
-                                </span>
-                                <div className="flex-1">
-                                  <div className="bg-muted h-2 w-full rounded-full">
-                                    <div
-                                      className={`h-full rounded-full ${
-                                        (attempt.totalScore ?? 0) >= 80
-                                          ? "bg-green-500"
-                                          : (attempt.totalScore ?? 0) >= 60
-                                            ? "bg-yellow-500"
-                                            : "bg-red-500"
-                                      }`}
-                                      style={{
-                                        width: `${attempt.totalScore ?? 0}%`,
-                                      }}
-                                    />
-                                  </div>
+                              <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                                <div>
+                                  <span className="text-muted-foreground">
+                                    Started:{" "}
+                                  </span>
+                                  {new Date(attempt.startedAt).toLocaleString()}
                                 </div>
-                                <span className="ml-2 font-medium">
-                                  {attempt.totalScore ?? 0}%
-                                </span>
+                                <div>
+                                  <span className="text-muted-foreground">
+                                    Completed:{" "}
+                                  </span>
+                                  {attempt.completedAt
+                                    ? new Date(
+                                        attempt.completedAt,
+                                      ).toLocaleString()
+                                    : "In Progress"}
+                                </div>
                               </div>
-                            )}
-                            <div className="mt-2 text-sm">
-                              <span className="text-muted-foreground">
-                                Answers:{" "}
-                              </span>
-                              {/* {attempt.answers?.length ?? 0} */}
+                              {attempt.status === AttemptStatus.EVALUATED && (
+                                <div className="mt-2 flex items-center">
+                                  <span className="text-muted-foreground mr-2 text-sm">
+                                    Score:{" "}
+                                  </span>
+                                  <div className="flex-1">
+                                    <div className="bg-muted h-2 w-full rounded-full">
+                                      <div
+                                        className={`h-full rounded-full ${
+                                          (attempt.totalScore ?? 0) >= 80
+                                            ? "bg-green-500"
+                                            : (attempt.totalScore ?? 0) >= 60
+                                              ? "bg-yellow-500"
+                                              : "bg-red-500"
+                                        }`}
+                                        style={{
+                                          width: `${attempt.totalScore ?? 0}%`,
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                  <span className="ml-2 font-medium">
+                                    {attempt.totalScore ?? 0}%
+                                  </span>
+                                </div>
+                              )}
+                              <div className="mt-2 text-sm">
+                                <span className="text-muted-foreground">
+                                  Answers:{" "}
+                                </span>
+                                {/* {attempt.answers?.length ?? 0} */}
+                              </div>
                             </div>
-                          </div>
+                          </Link>
                         ))}
                       </div>
                     ) : (
